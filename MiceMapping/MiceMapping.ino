@@ -1,9 +1,11 @@
 #include "TimerOne.h"
 #include "commons.h"
 #include <Arduino.h>
+#include <EEPROM.h>
 #include <avr/wdt.h>
 
 #include "zxLibGen2.h"
+#include "commons.h"
 
 #define buildAll
 #ifdef buildAll
@@ -11,6 +13,7 @@
 #endif
 
 bool isGen2 = false;
+int waterLenInt;
 
 void setup() {
 
@@ -73,6 +76,10 @@ void setup() {
   analogWrite(13, 0);
   analogWrite(12, 0); // BNC ground
 
+
+  EEPROM.get(sizeof(waterLenInt), waterLenInt);
+  WaterLen = waterLenInt / 1000.0;
+
   Serial.begin(19200);
   for (int i = 0; i < 10; i++) {
     byte probe[] = {20, 0x01 | 0x80};
@@ -108,8 +115,13 @@ void loop() {
     // 	delay(500);
     // }
 
+    byte sessEnd[]={61,0 | 0x80};
+    Serial.write(sessEnd, 2);
+    protectedSerialSend_G2(SpLick, (int)(WaterLen*1000) | 0x80);
     int n = getFuncNumberGen2(4, "Main Function?");
+
     randomSeed(analogRead(1));
+
     switch (n / 100) {
     case 43:
     case 44:
@@ -121,9 +133,12 @@ void loop() {
 
 #ifdef buildAll
   if (!isGen2) {
-		delay(500);
-		byte init[] = {0, 1, 2, 3};
-		Serial.write(init, 4);
+    delay(500);
+    serialSend(61,0);
+    byte init[] = {0x00, 0x01, 0x02, 0x03};
+    Serial.write(init, 4);
+    serialSend(SpLick, (int)(WaterLen*1000));
+
 
     while (1) {
       // for(int i=0;i<3;i++){

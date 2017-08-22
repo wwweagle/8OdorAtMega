@@ -103,6 +103,7 @@
 
 extern unsigned int hit, miss, falseAlarm, correctRejection, correctRatio;
 extern int currentMiss;
+extern float WaterLen;
 
 void Valve_ON(int valve);
 void Valve_OFF(int valve);

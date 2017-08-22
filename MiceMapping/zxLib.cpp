@@ -3,6 +3,7 @@
 #include "Arduino.h"
 #include "commons.h"
 #include "zxLib.h"
+#include <EEPROM.h>
 
 // LiquidCrystal lcd(50, 49, 48, 47, 46, 45, 44);
 
@@ -38,9 +39,6 @@ boolean outTrial;
 STIM_T stims = {.stim1Length = 1000u, .stim2Length = 1000u, .distractorLength = 500u, .currentDistractor = 5u, .distractorJudgingPair = 7u};
 LASER_T laser = {.timer = 0u, .onTime = 65535u, .offTime = 0u, .ramp = 0u, .ramping = 0u, .on = 0u, .side = 1u}; //1L,2R,3LR
 
-//////////////////////////////////////////////
-float WaterLen = 0.04;
-/////////////////////////////////////////////
 
 typedef unsigned int _delayT;
 
@@ -55,6 +53,18 @@ typedef unsigned int _delayT;
 //   digitalWrite(52, LOW);
 //   digitalWrite(53, HIGH);
 // }
+
+static void setWaterLen(){
+  int newLen;
+  EEPROM.get(sizeof(newLen), newLen);
+  serialSend(SpLick,newLen);
+  newLen = getFuncNumber(3, "Water Len in ms?");
+  serialSend(SpLick,newLen);
+  EEPROM.put(sizeof(newLen), newLen);
+  serialSend(61, 0);
+  callResetGen2();
+}
+
 
 
 void zxTimer1() {
@@ -3033,6 +3043,10 @@ void zxFunc(int n) {
     case 4444: // laser warming up
       analogWrite(13, 255);
       serialSend(Splaser, 1);
+      break;
+
+    case 4301:
+      setWaterLen();
       break;
 
   }

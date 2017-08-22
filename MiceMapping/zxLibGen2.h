@@ -327,7 +327,7 @@ void LCD_set_xy(int x, int y);
 void callFunc(int n);
 int getFuncNumberGen2(int targetDigits, const char input[]);
 void serialSendGen2(unsigned char type,  unsigned char value);
-void sendBound(int val);
+void sendLargeValue(int val);
 void lcd_data(char n);
 void lcdHomeNClear();
 
