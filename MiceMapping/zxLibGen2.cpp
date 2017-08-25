@@ -2,8 +2,46 @@
 #include "TimerOne.h"
 #include "zxLibGen2.h"
 
+#include "commons.h"
+// #include "zxLib.h"
+
 volatile int isSending = 0;
 volatile int sendLick = 0;
+int lickBound_G2 = 400; // Smaller is sensitive
+void setWaterLen(void);
+void testNSetBound(void);
+
+// DEBUG
+
+STIM_T_G2 stims_G2 = {.stim1Length = 1000u,
+                      .stim2Length = 1000u,
+                      .respCueLength = 500u,
+                      .distractorLength = 500u,
+                      .currentDistractor = 7u,
+                      .distractorJudgingPair = 8u,
+                      .respCueValve = 8u,
+                      .shapingExtra = 7u,
+                      .falseAlarmPenaltyRepeat = 0};
+LASER_T_G2 laser_G2 = {.timer = 0u,
+                       .onTime = 65535u,
+                       .offTime = 0u,
+                       .ramp = 0u,
+                       .ramping = 0u,
+                       .on = 0u,
+                       .side = 1u}; // 1L,2R,3LR
+// PWM_T_G2 pwm_G2 = {.L_Hi = 0xfe, .R_Hi = 0xfe, .L_Lo = 0u, .R_Lo = 0u,
+// .fullDuty = 0xfe};
+LICK_T_G2 lick_G2 = {
+    .current = 0u, .filter = 0u, .flag = 0u, .LCount = 0u, .RCount = 0u};
+// BALL_T_G2 mball_G2 = {.moving = 0, .steadyCounter = 0, .steadySent = 0};
+const char odorTypes_G2[] = " QRLYNHBA0123456789012345678901234567890123456789";
+unsigned int laserSessionType_G2 = LASER_EVERY_TRIAL;
+unsigned int taskType_G2 = DNMS_TASK;
+unsigned int wait_Trial_G2 = 1u;
+unsigned long timeSum_G2 = 0u;
+int punishFalseAlarm_G2 = 0;
+int psedoRanInput_G2;
+int abortTrials;
 
 int getFuncNumberGen2(int targetDigits, const char input[]) {
   int bitSet[targetDigits];
@@ -44,51 +82,82 @@ int getFuncNumberGen2(int targetDigits, const char input[]) {
   return n;
 }
 
-// void serialSendGen2(unsigned char type, unsigned char value) {
-//   byte toSend[] = {(byte)(type & 0x7fu), (byte)(value | 0x80u)};
-//   Serial.write(toSend, 2);
-// }
+
+static void turnOnLaser_G2(unsigned int i) {
+  laser_G2.timer = 0;
+  laser_G2.on = i;
+
+  // digitalWrite(13, HIGH);
+
+  if (i % 2) {
+    // Out4 = 1;
+    // Nop();
+    // Nop();
+    // PDC2 = pwm_G2.L_Lo;
+  }
+
+  if ((i >> 1) % 2) {
+    // Out5 = 1;
+    // Nop();
+    // Nop();
+    // PDC4 = pwm_G2.R_Lo;
+  }
+
+  lcdWriteChar_G2('L', 4, 1);
+  protectedSerialSend_G2(SpLaserSwitch, i);
+}
+
+
+
+void POST(void) {
+  lcdSplash_G2(__DATE__, __TIME__);
+  delay(2000);
+  int maxBound = 0;
+  int minBound = 999;
+
+  lcdSplash_G2("Mx   Mn   Cur   ", "Wtr     Vlv ");
+  lcdWriteNumber_G2(lickBound_G2, 3, 14, 1);
+  lcdWriteNumber_G2(WaterLen * 1000.0, 3, 4, 2);
+  unsigned long startTime = millis();
+  while (millis() < startTime + 5499ul) {
+    int sum = 0;
+    for (int i = 0; i < 15; i++) {
+      sum += analogRead(0);
+    }
+    int val = sum / 15;
+    if (val > maxBound) {
+      maxBound = val;
+      lcdWriteNumber_G2(maxBound, 3, 3, 1);
+    }
+    if (val < minBound) {
+      minBound = val;
+      lcdWriteNumber_G2(minBound, 3, 8, 1);
+    }
+    sendLargeValue(val);
+    delay(500);
+  }
+
+  sendLargeValue(lickBound_G2);
+
+  int valves[] = {1, 2, 3, 4, 8,11,12,13,14,18,21};
+
+  for (int i = 0; i < (int) (sizeof(valves) / sizeof(int)); i++) {
+    for (int j = 0; j < 8; j++) {
+      lcdWriteNumber_G2(valves[i], 2, 13, 2);
+      Valve_ON(valves[i]);
+      wait_ms_G2(50);
+      Valve_OFF(valves[i]);
+      wait_ms_G2(200);
+    }
+  }
+  turnOnLaser_G2(3);
+  setWaterLen();
+}
+
 
 ///////////////////////////////////////////
 ///////// COPY PASTE //////////////////////
 ///////////////////////////////////////////
-
-#include "commons.h"
-#include "zxLib.h"
-
-// DEBUG
-
-STIM_T_G2 stims_G2 = {.stim1Length = 1000u,
-                      .stim2Length = 1000u,
-                      .respCueLength = 500u,
-                      .distractorLength = 500u,
-                      .currentDistractor = 7u,
-                      .distractorJudgingPair = 8u,
-                      .respCueValve = 8u,
-                      .shapingExtra = 7u,
-                      .falseAlarmPenaltyRepeat = 0};
-LASER_T_G2 laser_G2 = {.timer = 0u,
-                       .onTime = 65535u,
-                       .offTime = 0u,
-                       .ramp = 0u,
-                       .ramping = 0u,
-                       .on = 0u,
-                       .side = 1u}; // 1L,2R,3LR
-// PWM_T_G2 pwm_G2 = {.L_Hi = 0xfe, .R_Hi = 0xfe, .L_Lo = 0u, .R_Lo = 0u,
-// .fullDuty = 0xfe};
-LICK_T_G2 lick_G2 = {
-    .current = 0u, .filter = 0u, .flag = 0u, .LCount = 0u, .RCount = 0u};
-// BALL_T_G2 mball_G2 = {.moving = 0, .steadyCounter = 0, .steadySent = 0};
-const char odorTypes_G2[] = " QRLYNHBA0123456789012345678901234567890123456789";
-unsigned int laserSessionType_G2 = LASER_EVERY_TRIAL;
-unsigned int taskType_G2 = DNMS_TASK;
-unsigned int wait_Trial_G2 = 1u;
-unsigned long timeSum_G2 = 0u;
-int punishFalseAlarm_G2 = 0;
-int psedoRanInput_G2;
-int abortTrials;
-
-int lickBound_G2 = 400; // Smaller is sensitive
 
 // unsigned long timerCounter32;
 
@@ -102,23 +171,6 @@ static void zxLaserTrial_G2(int type, int firstOdor, STIM_T_G2 odors,
 unsigned int getFuncNumberMarquee_G2(int targetDigits, const char input[],
                                      int l);
 
-// char * getVer_G2(void) {
-//     static char ver[16] = {'Z', 'X', ' '};
-//     char date[] = __DATE__;
-//     char time[] = __TIME__;
-//     int i;
-//     for (i = 0; i < 6; i++) {
-//         ver[i + 3] = date[i];
-//     }
-//     ver[9] = ' ';
-//     for (i = 0; i < 5; i++) {
-//         ver[i + 10] = time[i];
-//     }
-//     return ver;
-// }
-
-
-
 void initZXTMR_G2(void) {
 
   Timer1.detachInterrupt();
@@ -131,7 +183,11 @@ void initZXTMR_G2(void) {
 inline int filtered_G2(void) { return (millis() > lick_G2.filter + 50u); }
 
 void zxTimer1Gen2() {
-  // else if (LICK_LEFT && lick_G2.current != LICKING_LEFT && filtered_G2()) {
+  if(laser_G2.on){
+    digitalWrite(13, HIGH);
+  }else{
+    digitalWrite(13,LOW);
+  }
   if (analogRead(0) < lickBound_G2 && lick_G2.current != LICKING_LEFT &&
       filtered_G2()) { // Low is lick
     lick_G2.filter = millis();
@@ -141,7 +197,7 @@ void zxTimer1Gen2() {
     if (isSending) {
       sendLick = 1;
     } else {
-      protectedSerialSend_G2(0, 1);
+      protectedSerialSend_G2(0, 2);
       sendLick = 0;
     }
   } else if (lick_G2.current && (analogRead(0) >= lickBound_G2)) {
@@ -209,54 +265,23 @@ static int setLaser_G2() {
     return LASER_NO_TRIAL;
 }
 
-
-
 void protectedSerialSend_G2(int type, int value) {
   isSending = 1;
   byte val[] = {(byte)(type & 0x7F), (byte)(value | 0x80)};
   Serial.write(val, 2);
   if (sendLick) {
     val[0] = 0;
-    val[1] = 1;
+    val[1] = 2;
     Serial.write(val, 2);
   }
   sendLick = 0;
   isSending = 0;
 }
 
-static void turnOnLaser_G2(unsigned int i) {
-  laser_G2.timer = 0;
-  laser_G2.on = i;
-
-  if (i % 2) {
-    // Out4 = 1;
-    // Nop();
-    // Nop();
-    // PDC2 = pwm_G2.L_Lo;
-  }
-
-  if ((i >> 1) % 2) {
-    // Out5 = 1;
-    // Nop();
-    // Nop();
-    // PDC4 = pwm_G2.R_Lo;
-  }
-
-  lcdWriteChar_G2('L', 4, 1);
-  protectedSerialSend_G2(SpLaserSwitch, i);
-}
-
 static void turnOffLaser_G2() {
   laser_G2.on = 0;
-  // Out4 = 0;
-  // Nop();
-  // Nop();
-  // Out5 = 0;
+  // digitalWrite(13, LOW);
   if (laser_G2.ramping == 0) {
-    // PDC2 = pwm_G2.fullDuty;
-    // Nop();
-    // Nop();
-    // PDC4 = pwm_G2.fullDuty;
   }
   lcdWriteChar_G2('.', 4, 1);
   protectedSerialSend_G2(SpLaserSwitch, 0);
@@ -604,7 +629,7 @@ void lcdWriteNumber_G2(int n, int digits, int x, int y) {
   if (digits < 1 || n < 0) {
     return;
   }
-  LCD_set_xy(x-1, y-1);
+  LCD_set_xy(x - 1, y - 1);
   int tenK = n / 10000;
   int K = (n % 10000) / 1000;
   int H = (n % 1000) / 100;
@@ -625,7 +650,7 @@ void lcdWriteNumber_G2(int n, int digits, int x, int y) {
 }
 
 void lcdWriteChar_G2(char ch, int x, int y) {
-  LCD_set_xy(x-1, y-1);
+  LCD_set_xy(x - 1, y - 1);
   protectedSerialSend_G2(SpLCD_Char, ch);
 }
 
@@ -692,9 +717,9 @@ unsigned int getFuncNumberMarquee_G2(int targetDigits, const char input[],
 
 static void processHit_G2(float waterPeroid, int valve, int id) {
   protectedSerialSend_G2(22, 1);
-  if(valve==1 || valve==2){
-      Valve_ON(water_sweet);
-    }
+  if (valve == 1 || valve == 2) {
+    Valve_ON(water_sweet);
+  }
   wait_ms_G2(waterPeroid * 1000);
   Valve_OFF(water_sweet);
   currentMiss = 0;
@@ -952,10 +977,10 @@ static void zxLaserSessions_G2(int stim1, int stim2, int laserTrialType,
     //        protectedSerialSend(SpOdorDelay, delay);
     protectedSerialSend_G2(SpSess, 1);
 
-    lcdSplash_G2("    H___M___ __%", "S__ F___C___t___");
+    lcdSplash_G2("    H___M___ __%", "S__ F___C___A___");
 
     lcdWriteNumber_G2(currentSession, 2, 2, 2);
-    hit = miss = falseAlarm = correctRejection = 0;
+    hit = miss = falseAlarm = correctRejection =abortTrials= 0;
     unsigned int lastHit = 0;
     unsigned int shuffledList[4];
     unsigned int shuffledLongList[highLevelShuffleLength_G2];
@@ -1402,8 +1427,8 @@ static void zxLaserSessions_G2(int stim1, int stim2, int laserTrialType,
 //}
 
 static void stim_G2(int place, int stim, int type) {
-  if(place==1 || place==2){
-    Valve_ON(stim+10);
+  if (place == 1 || place == 2) {
+    Valve_ON(stim + 10);
     waitTaskTimer_G2(500u);
   }
   switch (stim) {
@@ -1452,18 +1477,18 @@ static void stim_G2(int place, int stim, int type) {
     switch (place) {
     case 1:
       lcdWriteChar_G2('1', 4, 1);
-      waitTaskTimer_G2(stims_G2.stim1Length-100u);
+      waitTaskTimer_G2(stims_G2.stim1Length - 100u);
       break;
     case 2:
       lcdWriteChar_G2('2', 4, 1);
-      waitTaskTimer_G2(stims_G2.stim2Length-100u);
+      waitTaskTimer_G2(stims_G2.stim2Length - 100u);
       break;
     case 3:
       lcdWriteChar_G2('3', 4, 1);
-      waitTaskTimer_G2(stims_G2.respCueLength-100u);
+      waitTaskTimer_G2(stims_G2.respCueLength - 100u);
       break;
     }
-    Valve_OFF(stim+10);
+    Valve_OFF(stim + 10);
     waitTaskTimer_G2(100u);
     Valve_OFF(stim);
     // Out2 = 0;
@@ -1653,17 +1678,18 @@ static void zxLaserTrial_G2(int type, int firstOdor, STIM_T_G2 odors,
     break;
   }
   unsigned int delayLick1 = responseDelayLicked_G2(1000u);
-  Valve_ON(stims_G2.respCueValve+10);
+  Valve_ON(stims_G2.respCueValve + 10);
   unsigned int delayLick2 = responseDelayLicked_G2(500u);
-  unsigned int delayLick=delayLick1 | delayLick2;
-  lick_G2.flag=delayLick;
+  unsigned int delayLick = delayLick1 | delayLick2;
+  lick_G2.flag = delayLick;
   //////////////-Response Cue-/////////////////
   int resultRtn = 0;
   if (delayLick) {
     protectedSerialSend_G2(SpAbortTrial, 1);
+    abortTrials++;
     lcdWriteChar_G2('A', 4, 1);
     waitTaskTimer_G2(500u);
-    Valve_OFF(stims_G2.respCueValve+10);
+    Valve_OFF(stims_G2.respCueValve + 10);
   } else {
     assertLaser_G2(type, atRewardBeginning);
     lcdWriteChar_G2('R', 4, 1);
@@ -1682,7 +1708,7 @@ static void zxLaserTrial_G2(int type, int firstOdor, STIM_T_G2 odors,
   waitTaskTimer_G2(1050u); // water time sync
   // Total Trials
   int totalTrials = hit + correctRejection + miss + falseAlarm + abortTrials;
-  lcdWriteNumber_G2(totalTrials, 3, 14, 2);
+  lcdWriteNumber_G2(abortTrials, 3, 14, 2);
   // Discrimination rate
   if (hit + correctRejection > 0) {
 
@@ -1777,12 +1803,14 @@ static void laserTrain_G2() {
 }
 
 void testValve_G2(void) {
-  unsigned int v = getFuncNumberGen2(1, "Valve No?");
+  unsigned int v = getFuncNumberGen2(2, "Valve No?");
   while (1) {
-
+    Valve_ON(v+10);
+    wait_ms_G2(500);
     Valve_ON(v);
     wait_ms_G2(1000);
     Valve_OFF(v);
+    Valve_OFF(v+10);
     wait_ms_G2(1000);
   }
 }
@@ -1856,7 +1884,7 @@ static void testNSetBound() {
   callResetGen2();
 }
 
-static void setWaterLen(){
+static void setWaterLen() {
   int newLen;
   EEPROM.get(sizeof(newLen), newLen);
   sendLargeValue(newLen);
@@ -1929,28 +1957,16 @@ void sendLargeValue(int val) {
   protectedSerialSend_G2(24, valLow);
 }
 
-
-
-
 void callFunc(int n) {
   currentMiss = 0;
-  // pwm_G2.L_Lo = read_eeprom_G2(EEP_DUTY_LOW_L_OFFSET);
-  // pwm_G2.L_Hi = read_eeprom_G2(EEP_DUTY_HIGH_L_OFFSET);
-  // pwm_G2.R_Lo = read_eeprom_G2(EEP_DUTY_LOW_R_OFFSET);
-  // pwm_G2.R_Hi = read_eeprom_G2(EEP_DUTY_HIGH_R_OFFSET);
-
-  // PORTFbits.RF0 = 1;
-  //    waitTrial();
 
   EEPROM.get(0, lickBound_G2);
-  sendLargeValue(lickBound_G2);
 
   srand(analogRead(0));
   initZXTMR_G2();
   switch (n) {
   //            int m;
   // ZX's functions
-
 
   case 4301:
     testNSetBound();
@@ -1971,10 +1987,15 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_NO_TRIAL;
     taskType_G2 = SHAPING_TASK;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 4u, 8u, 20, WaterLen, 50,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 4u, 8u, 20, WaterLen,
+                       50, setSessionNum_G2());
     break;
   }
+
+  case 4305:
+    POST();
+
+    break;
   //        case 4305:
   //        {
   //            splash("DNMS Task", "");
@@ -1991,8 +2012,8 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_NO_TRIAL;
     taskType_G2 = GONOGO_TASK;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuring3Baseline, 0u, 5u, 20, WaterLen,
-                       20, setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuring3Baseline, 0u, 5u, 20,
+                       WaterLen, 20, setSessionNum_G2());
     break;
   }
   case 4307: {
@@ -2001,8 +2022,8 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_LR_EVERYTRIAL;
     taskType_G2 = OPTO_ODPA_TASK;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuring1stOdor, 4u, 8u, 20, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuring1stOdor, 4u, 8u, 20, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2012,8 +2033,8 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_LR_EVERYTRIAL;
     taskType_G2 = OPTO_ODPA_SHAPING_TASK;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuring1stOdor, 4u, 8u, 20, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuring1stOdor, 4u, 8u, 20, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
   case 4310: {
@@ -2039,8 +2060,8 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_OTHER_TRIAL;
     taskType_G2 = GONOGO_TASK;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuring3Baseline, 0u, 5u, 20, WaterLen,
-                       20, setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuring3Baseline, 0u, 5u, 20,
+                       WaterLen, 20, setSessionNum_G2());
     break;
   }
   case 4314: {
@@ -2048,8 +2069,8 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_VARY_LENGTH;
     laser_G2.ramp = 500;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 5u, 10u, 20, WaterLen, 15,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 5u, 10u, 20, WaterLen,
+                       15, setSessionNum_G2());
     laser_G2.ramp = 0;
     break;
   }
@@ -2091,8 +2112,8 @@ void callFunc(int n) {
     lcdSplash_G2("LR LASER DNMS", "Sufficiency");
     _delayT delay = setDelay_G2();
     laserSessionType_G2 = LASER_LR_EVERYTRIAL;
-    zxLaserSessions_G2(5, 6, laserRampDuringDelay, delay, delay * 2u, 20u, WaterLen,
-                       20, setSessionNum_G2());
+    zxLaserSessions_G2(5, 6, laserRampDuringDelay, delay, delay * 2u, 20u,
+                       WaterLen, 20, setSessionNum_G2());
     break;
   }
 
@@ -2273,8 +2294,8 @@ void callFunc(int n) {
     protectedSerialSend_G2(PERM_INFO, DMS_LR_response_Laser);
     taskType_G2 = DNMS_2AFC_TEACH;
     laserSessionType_G2 = LASER_OTHER_TRIAL;
-    zxLaserSessions_G2(5, 6, laserDuringResponseDelay, 5u, 10u, 20, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(5, 6, laserDuringResponseDelay, 5u, 10u, 20, WaterLen,
+                       30, setSessionNum_G2());
     break;
 
   case 4340: {
@@ -2283,8 +2304,8 @@ void callFunc(int n) {
     lcdSplash_G2("LR LASER DNMS", "Sufficiency");
     _delayT delay = setDelay_G2();
     laserSessionType_G2 = LASER_LR_EVERY_OTHER_TRIAL;
-    zxLaserSessions_G2(5, 6, laserRampDuringDelay, delay, delay * 2u, 20u, WaterLen,
-                       20, setSessionNum_G2());
+    zxLaserSessions_G2(5, 6, laserRampDuringDelay, delay, delay * 2u, 20u,
+                       WaterLen, 20, setSessionNum_G2());
     break;
   }
 
@@ -2327,7 +2348,8 @@ void callFunc(int n) {
   //            splash("DNMS 5s ++", "RQ DC laser");
   //            laserSessionType = LASER_EVERY_TRIAL;
   //            taskType = DNMS_TASK;
-  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 5u, 10u, 20, WaterLen,
+  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 5u, 10u, 20,
+  //            WaterLen,
   //            50, setSessionNum());
   //            break;
   //        }
@@ -2336,7 +2358,8 @@ void callFunc(int n) {
   //            splash("DNMS 5s", "RQ NoLaser");
   //            laserSessionType = LASER_NO_TRIAL;
   //            taskType = DNMS_TASK;
-  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 5u, 10u, 20, WaterLen,
+  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 5u, 10u, 20,
+  //            WaterLen,
   //            50, setSessionNum());
   //            break;
   //        }
@@ -2346,7 +2369,8 @@ void callFunc(int n) {
   //            splash("DNMS 8s ++", "RQ DC laser");
   //            laserSessionType = LASER_EVERY_TRIAL;
   //            taskType = DNMS_TASK;
-  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 8u, 16u, 20, WaterLen,
+  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 8u, 16u, 20,
+  //            WaterLen,
   //            50, setSessionNum());
   //            break;
   //        }
@@ -2355,7 +2379,8 @@ void callFunc(int n) {
   //            splash("Rule Match Shap", "C-B D-A");
   //            laserTrialType = _LASER_NO_TRIAL;
   //            taskType = _ASSOCIATE_SHAPING_TASK;
-  //            zxLaserSessions(0, laserDuringDelayChR2, 5u, 10, 20u, WaterLen, 50,
+  //            zxLaserSessions(0, laserDuringDelayChR2, 5u, 10, 20u, WaterLen,
+  //            50,
   //            setSessionNum());
   //            break;
   //
@@ -2363,7 +2388,8 @@ void callFunc(int n) {
   //            splash("Rule Match", "C-B D-A");
   //            laserTrialType = _LASER_NO_TRIAL;
   //            taskType = _ASSOCIATE_TASK;
-  //            zxLaserSessions(0, laserDuringDelayChR2, 5u, 10, 20u, WaterLen, 50,
+  //            zxLaserSessions(0, laserDuringDelayChR2, 5u, 10, 20u, WaterLen,
+  //            50,
   //            setSessionNum());
   //            break;
 
@@ -2372,7 +2398,8 @@ void callFunc(int n) {
   //            splash("DNMS 5s +-", "RQ DC laser");
   //            laserSessionType = LASER_OTHER_TRIAL;
   //            taskType = DNMS_TASK;
-  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 5u, 10u, 20, WaterLen,
+  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 5u, 10u, 20,
+  //            WaterLen,
   //            50, setSessionNum());
   //            break;
   //        }
@@ -2386,7 +2413,8 @@ void callFunc(int n) {
   //            splash("DNMS 8s +-", "RQ DC laser");
   //            laserSessionType = LASER_OTHER_TRIAL;
   //            taskType = DNMS_TASK;
-  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 8u, 16u, 20, WaterLen,
+  //            zxLaserSessions(5, 6, laserDuringDelayChR2, 8u, 16u, 20,
+  //            WaterLen,
   //            50, setSessionNum());
   //            break;
   //        }
@@ -2419,8 +2447,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     taskType_G2 = DUAL_TASK_LEARNING;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2448,8 +2476,8 @@ void callFunc(int n) {
     taskType_G2 = DUAL_TASK_ON_OFF_LASER_TASK;
     laserSessionType_G2 = LASER_DUAL_TASK_ON_OFF;
     laser_G2.ramp = 500;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
   case 4363: {
@@ -2462,8 +2490,8 @@ void callFunc(int n) {
     taskType_G2 = DUAL_TASK_ODAP_ON_OFF_LASER_TASK;
     laserSessionType_G2 = LASER_DUAL_TASK_ODAP_ON_OFF;
     laser_G2.ramp = 500;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2570,8 +2598,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
 
-    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2583,8 +2611,8 @@ void callFunc(int n) {
     int sampleType = setType_G2();
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
-    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2643,8 +2671,8 @@ void callFunc(int n) {
     int sampleType = setType_G2();
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
-    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen, 100,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen,
+                       100, setSessionNum_G2());
     break;
   }
 
@@ -2657,8 +2685,8 @@ void callFunc(int n) {
     int sampleType = setType_G2();
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
-    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen, 100,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen,
+                       100, setSessionNum_G2());
     break;
   }
 
@@ -2671,8 +2699,8 @@ void callFunc(int n) {
     int sampleType = setType_G2();
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
-    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen, 20,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen,
+                       20, setSessionNum_G2());
     break;
   }
 
@@ -2686,8 +2714,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     punishFalseAlarm_G2 = FALSE_ALARM_PENALTY_TIMEOUT;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen, 20,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen,
+                       20, setSessionNum_G2());
     break;
   }
   case 4379: {
@@ -2700,8 +2728,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     punishFalseAlarm_G2 = FALSE_ALARM_PENALTY_REPEAT;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen, 20,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 5u, 8u, 20u, WaterLen,
+                       20, setSessionNum_G2());
     break;
   }
 
@@ -2714,8 +2742,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     unsigned int delay = setDelay_G2();
-    zxLaserSessions_G2(sampleType, testType, laserOff, delay, delay, 24u, WaterLen,
-                       30, setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, delay, delay, 24u,
+                       WaterLen, 30, setSessionNum_G2());
     break;
   }
 
@@ -2728,8 +2756,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     unsigned int delay = setDelay_G2();
-    zxLaserSessions_G2(sampleType, testType, laserOff, delay, delay, 24u, WaterLen,
-                       30, setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, delay, delay, 24u,
+                       WaterLen, 30, setSessionNum_G2());
     break;
   }
 
@@ -2755,8 +2783,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     taskType_G2 = DUAL_TASK_LEARNING;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 8u, 8u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 8u, 8u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2769,8 +2797,8 @@ void callFunc(int n) {
     int testType = setType_G2();
     taskType_G2 = DUAL_TASK;
     laserSessionType_G2 = LASER_NO_TRIAL;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 8u, 8u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 8u, 8u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2783,8 +2811,8 @@ void callFunc(int n) {
     lcdSplash_G2("Test Odor", "");
     int testType = setType_G2();
     laser_G2.ramp = 500;
-    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen, 30,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(sampleType, testType, laserOff, 13u, 13u, 24u, WaterLen,
+                       30, setSessionNum_G2());
     break;
   }
 
@@ -2807,8 +2835,8 @@ void callFunc(int n) {
     lcdSplash_G2("Odor", "");
     int odorType = setType_G2();
     taskType_G2 = DNMS_DUAL_TASK_LEARNING;
-    zxLaserSessions_G2(odorType, odorType + 1, laserOff, 13u, 26u, 24u, WaterLen,
-                       30, setSessionNum_G2());
+    zxLaserSessions_G2(odorType, odorType + 1, laserOff, 13u, 26u, 24u,
+                       WaterLen, 30, setSessionNum_G2());
     break;
   }
 
@@ -2854,7 +2882,8 @@ void callFunc(int n) {
   //            splash("DNMS LR Distra.", "Laser EveryTrial");
   //            taskType = DNMS_2AFC_TASK;
   //            laserTrialType = LASER_EVERY_TRIAL;
-  //            zxLaserSessions(5, 6, laserDelayDistractor, 5u, 10u, 20, WaterLen,
+  //            zxLaserSessions(5, 6, laserDelayDistractor, 5u, 10u, 20,
+  //            WaterLen,
   //            200, setSessionNum());
   //            break;
   //        }
@@ -2903,8 +2932,8 @@ void callFunc(int n) {
     laserSessionType_G2 = LASER_NO_TRIAL;
     taskType_G2 = SHAPING_TASK;
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 4u, 8u, 20, WaterLen, 50,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 4u, 8u, 20, WaterLen,
+                       50, setSessionNum_G2());
     break;
   }
   //        case 4422:
@@ -2922,14 +2951,14 @@ void callFunc(int n) {
     break;
 
   case 4424:
-    feedWaterFast_G2((int) (WaterLen*1000));
+    feedWaterFast_G2((int)(WaterLen * 1000));
     break;
 
   case 4425: {
     lcdSplash_G2("Learning", "DC laser");
     int type = setType_G2();
-    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 4u, 8u, 20, WaterLen, 60,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(type, type + 1, laserDuringDelay, 4u, 8u, 20, WaterLen,
+                       60, setSessionNum_G2());
     break;
   }
   //        case 4426:
@@ -2995,7 +3024,8 @@ void callFunc(int n) {
   //            splash("DNMS LR", "Laser EveryTrial");
   //            taskType = _DNMS_LR_TASK;
   //            laserTrialType = _LASER_EVERY_TRIAL;
-  //            zxLaserSessions(5,6, laserDelayDistractor, 5u, 10u, 20, WaterLen,
+  //            zxLaserSessions(5,6, laserDelayDistractor, 5u, 10u, 20,
+  //            WaterLen,
   //            200, setSessionNum());
   //            break;
   //        }
@@ -3017,8 +3047,8 @@ void callFunc(int n) {
   case 4443: {
     lcdSplash_G2("Response Delay LR", "Laser EveryTrial");
     taskType_G2 = DNMS_2AFC_TASK;
-    zxLaserSessions_G2(5, 6, laserDuringResponseDelay, 5u, 10u, 20, WaterLen, 200,
-                       setSessionNum_G2());
+    zxLaserSessions_G2(5, 6, laserDuringResponseDelay, 5u, 10u, 20, WaterLen,
+                       200, setSessionNum_G2());
     break;
   }
 
@@ -3037,7 +3067,7 @@ void callFunc(int n) {
   case 4450:
     varifyOpticalSuppression_G2();
     break;
-
-
   }
+
+
 }

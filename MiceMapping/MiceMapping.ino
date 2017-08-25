@@ -48,6 +48,7 @@ void setup() {
   pinMode(46, OUTPUT);
   pinMode(52, OUTPUT);
   pinMode(53, OUTPUT);
+  pinMode(13,OUTPUT);
 
   digitalWrite(22, LOW);
   digitalWrite(23, LOW);
@@ -102,18 +103,9 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+
   if (isGen2) {
-    // for(int i=0;i<4;i++){
-    // 	digitalWrite(LED_BUILTIN,HIGH);
-    // 	delay(100);
-    // 	digitalWrite(LED_BUILTIN,LOW);
-    // 	delay(100);
-    // 	digitalWrite(LED_BUILTIN,HIGH);
-    // 	delay(100);
-    // 	digitalWrite(LED_BUILTIN,LOW);
-    // 	delay(500);
-    // }
+
 
     byte sessEnd[]={61,0 | 0x80};
     Serial.write(sessEnd, 2);
@@ -141,13 +133,6 @@ void loop() {
 
 
     while (1) {
-      // for(int i=0;i<3;i++){
-      // 	digitalWrite(LED_BUILTIN,HIGH);
-      // 	delay(250);
-      // 	digitalWrite(LED_BUILTIN,LOW);
-      // 	delay(250);
-      // }
-
       int n = getFuncNumber(4, "Main Function?");
       randomSeed(analogRead(1));
       switch (n / 100) {

@@ -42,17 +42,6 @@ LASER_T laser = {.timer = 0u, .onTime = 65535u, .offTime = 0u, .ramp = 0u, .ramp
 
 typedef unsigned int _delayT;
 
-// void callReset() {
-//   Timer1.detachInterrupt();
-//   Serial.read();
-//   delay(100);
-//   serialSend(SpSess, 0);
-//   delay(100);
-//   pinMode(52, OUTPUT);
-//   pinMode(53, OUTPUT);
-//   digitalWrite(52, LOW);
-//   digitalWrite(53, HIGH);
-// }
 
 static void setWaterLen(){
   int newLen;
