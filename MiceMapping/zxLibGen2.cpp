@@ -10,6 +10,7 @@ volatile int sendLick = 0;
 int lickBound_G2 = 400; // Smaller is sensitive
 void setWaterLen(void);
 void testNSetBound(void);
+static unsigned long fidTimeStamp=0;
 
 // DEBUG
 
@@ -42,6 +43,17 @@ unsigned long timeSum_G2 = 0u;
 int punishFalseAlarm_G2 = 0;
 int psedoRanInput_G2;
 int abortTrials;
+
+
+void FIDtest()   {
+  int temp = 0;
+  for (int i = 0; i < 4; i++) {
+    temp += analogRead(1);
+  }
+    protectedSerialSend_G2(SpChartHigh, (temp >> 6));
+    protectedSerialSend_G2(SpChartLow, (temp & 0x3f));
+}
+
 
 int getFuncNumberGen2(int targetDigits, const char input[]) {
   int bitSet[targetDigits];
@@ -111,7 +123,7 @@ static void turnOnLaser_G2(unsigned int i) {
 
 void POST(void) {
   lcdSplash_G2(__DATE__, __TIME__);
-  delay(2000);
+  delay(1000);
   int maxBound = 0;
   int minBound = 999;
 
@@ -119,7 +131,7 @@ void POST(void) {
   lcdWriteNumber_G2(lickBound_G2, 3, 14, 1);
   lcdWriteNumber_G2(WaterLen * 1000.0, 3, 4, 2);
   unsigned long startTime = millis();
-  while (millis() < startTime + 5499ul) {
+  while (millis() < startTime + 2499ul) {
     int sum = 0;
     for (int i = 0; i < 15; i++) {
       sum += analogRead(0);
@@ -142,7 +154,7 @@ void POST(void) {
   int valves[] = {1, 2, 3, 4, 8,11,12,13,14,18,21};
 
   for (int i = 0; i < (int) (sizeof(valves) / sizeof(int)); i++) {
-    for (int j = 0; j < 8; j++) {
+    for (int j = 0; j < 4; j++) {
       lcdWriteNumber_G2(valves[i], 2, 13, 2);
       Valve_ON(valves[i]);
       wait_ms_G2(50);
@@ -151,7 +163,7 @@ void POST(void) {
     }
   }
   turnOnLaser_G2(3);
-  setWaterLen();
+  // setWaterLen();
 }
 
 
@@ -209,6 +221,11 @@ void zxTimer1Gen2() {
     Timer1.detachInterrupt();
     callResetGen2();
   }
+  if(millis()>fidTimeStamp+500){
+    fidTimeStamp=millis();
+    FIDtest();
+  }
+
 }
 
 static void resetTaskTimer_G2() { timeSum_G2 = millis(); }

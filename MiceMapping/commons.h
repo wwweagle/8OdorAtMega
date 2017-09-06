@@ -39,7 +39,9 @@
 #define SpS2S2   26 //LCDChar
 #define SpLCD_Char 26
 #define SpS2S3   27
+#define SpChartHigh   27
 #define SpS2S4   28
+#define SpChartLow   28
 #define SpS2S5   29
 #define SpS3S1   30
 #define SpS3S2   31

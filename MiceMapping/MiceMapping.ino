@@ -85,7 +85,7 @@ void setup() {
   for (int i = 0; i < 10; i++) {
     byte probe[] = {20, 0x01 | 0x80};
     Serial.write(probe, 2);
-    delay(50);
+    delay(25);
     if (Serial.available() > 0 && Serial.read() == 0x31) {
       isGen2 = true;
       break;
@@ -100,6 +100,11 @@ void setup() {
     Serial.begin(9600);
   }
 #endif
+
+  delay(500);
+  while(Serial.available()>0){
+    Serial.read();
+  }
 }
 
 void loop() {
