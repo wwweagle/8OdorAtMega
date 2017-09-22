@@ -278,7 +278,7 @@ typedef unsigned int _delayT;
 #define SpResponseCue 83
 #define SpAbortTrial 84
 
-#define water_sweet 21
+#define WATER_PORT 21
 
 
 //extern float odorLength;

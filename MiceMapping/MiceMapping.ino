@@ -101,7 +101,7 @@ void setup() {
   }
 #endif
 
-  delay(500);
+  delay(250);
   while(Serial.available()>0){
     Serial.read();
   }

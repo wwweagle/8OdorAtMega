@@ -639,7 +639,7 @@ void DRTTrial(int type, int firstOdor, STIM_T odors, int delayduration, int seco
     } else {
       waitTaskTimer(1000ul);
     }
-  }  else if (taskType == DRT_TRAINING) {
+  }  else if (taskType == DRT_TRAINING || taskType == DPA_DRT_SHAPING) {
     if (teachSesNo == 0 || currentSession > teachSesNo) {
       if (type == laserDuring2ndOdor_S) {
         assertLaserOFF(type, false);
@@ -1127,7 +1127,7 @@ void DPATrial(int type, int firstOdor, STIM_T odors, int delayduration, int seco
     } else {
       waitTaskTimer(1000ul);
     }
-  } else if ((taskType == DPA_SHAPING || taskType == SIX_ODOR_DPA_SHAPING) && (currentSession <= teachSesNo)) {
+  } else if ((taskType == DPA_SHAPING || taskType == SIX_ODOR_DPA_SHAPING || taskType == DPA_DRT_SHAPING || taskType == DPA_DNMS_SHAPING) && (currentSession <= teachSesNo)) {
     waitTaskTimer(500ul);
     Valve_ON(waterValve);
     serialSend(SpWater_sweet, 1);
@@ -1785,20 +1785,20 @@ static void MixDPADNMSSessionsE(int stim1, int stim2, int laserTrialType, _delay
 
           case DPA_DRT_SHAPING:  //   4362
             firstOdor = (index == 0 || index == 1) ? stim1 : (stim1 + 1);
-            secondOdor = (firstOdor == stim1) ? stim2  : (stim2 + 1);
+            secondOdor = (index == 1 || index == 2) ? stim2 : (stim2 + 1);
             first_ITI = 2.5;
             second_ITI = 2.45;
             switch (blockNum % 2) {
               case 0:
-                DistractorSeq[1] = 0u;
-                break;
-              case 1:
-                if (blockNum / 2 % 2 == 1) {
+               if (blockNum / 2 % 2 == 1) {
                   DistractorSeq[1] = (index == 0 || index == 1) ? 5 : 6;
                 } else {
                   DistractorSeq[1] = (index == 2 || index == 3) ? 5 : 6;
                 }
-                break;
+                break;               
+              case 1:
+                 DistractorSeq[1] = 0u;
+                 break;
             }
             DistractorSeq[2] = 7u;
             break;
