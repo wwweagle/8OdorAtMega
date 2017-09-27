@@ -931,30 +931,30 @@ int waterNResult_G2(int firstOdor, int secondOdor, float waterPeroid, int id) {
   return rtn;
 }
 
-static void distractor_G2(int type, unsigned int distractOdor,
+void dual_task_D_R(int type, unsigned int distractOdor,
                           unsigned int judgingPair, float waterLen) {
   //delay+0.5s
   if (distractOdor == 0) {
-    wait_ms_G2(3500u);//delay+4s
+    waitTaskTimer_G2(3550u);//delay+4s
   } else {
     Valve_ON(distractOdor + 10);
-    wait_ms_G2(500u);//delay+1s
+    waitTaskTimer_G2(500u);//delay+1s
     Valve_ON(distractOdor);
     protectedSerialSend_G2(isLikeOdorA_G2(distractOdor) ? SpOdor_C : SpOdor_D,
                            distractOdor);
     lcdWriteChar_G2(isLikeOdorA_G2(distractOdor) ? '.' : ':', 4, 1);
-    wait_ms_G2(stims_G2.distractorLength - 100u);
+    waitTaskTimer_G2(stims_G2.distractorLength - 100u);
     Valve_OFF(distractOdor + 10);
-    wait_ms_G2(100u);
+    waitTaskTimer_G2(100u);
     protectedSerialSend_G2(isLikeOdorA_G2(distractOdor) ? SpOdor_C : SpOdor_D,
                            0);
     Valve_OFF(distractOdor);//delay+1.5s
     lcdWriteChar_G2('D', 4, 1);
-    if (cleanResponseDelay(type, 2)) {//delay+3.5s
-      waterNResult_G2(distractOdor, judgingPair, waterLen, 2);//delay+4s
-    }else{//delay+3.5s
-      wait_ms_G2(500u);//delay+4s
+    if (cleanResponseDelay(type, 3)) {//delay+3.5s
+      waterNResult_G2(distractOdor, judgingPair, waterLen, 3);//delay+4s
+
     }
+    waitTaskTimer_G2(550u);
   }
 }
 
@@ -1455,7 +1455,7 @@ static void zxLaserSessions_G2(int stim1, int stim2, int laserTrialType,
 //    lcdWriteChar(place == 1 ? 'd' : 'D', 4, 1);
 //}
 
-static void stim_G2(int place, int stim, int type) {
+static void stim_G2(int place, int stim, int type) { //will take 1500 ms
   if (place == 1 || place == 2) {
     Valve_ON(stim + 10);
     waitTaskTimer_G2(500u);
@@ -1633,13 +1633,12 @@ static void zxLaserTrial_G2(int type, int firstOdor, STIM_T_G2 odors,
             taskType_G2 == DUAL_TASK_EVERY_TRIAL) {
       waitTaskTimer_G2(500u); //@500ms
       // assertLaser_G2(type, atPreDualTask); //@2s
-      distractor_G2(type, stims_G2.currentDistractor,
+      dual_task_D_R(type, stims_G2.currentDistractor,
                     stims_G2.distractorJudgingPair, waterPeroid);
       // waitTaskTimer_G2(1500u);
       assertLaser_G2(type, atPostDualTask); // distractor@3.5sec
-      waitTaskTimer_G2(3500u);
       if (interOdorDelay >= 8u) {
-        waitTaskTimer_G2((int) interOdorDelay*1000-4000);
+        waitTaskTimer_G2((int) interOdorDelay*1000-4500);
       }
     } else {
 

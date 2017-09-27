@@ -321,13 +321,9 @@ void stim(int place, int stim, int type) {
       assertLaserON(type);
     } else if (((type == laserDuring1stOdor_D && stim < 3)  || (type == laserDuring2ndOdor_D  && stim > 4)) && taskType == DPA_DRT_TRAINING) {
       assertLaserON(type);
-    } else if (((type == laserDuring1stOdor_D && stim > 4)  || (type == laserDuring2ndOdor_D  && stim < 3)) && taskType == DRT_DPA_TRAINING) {
-      assertLaserON(type);
-    }
+    } 
   } else if (place == 2 ) {
     if (((type == laserDuring4thOdor_D && stim < 5)  || (type == laserDuring3rdOdor_D  && stim > 4)) && taskType == DPA_DRT_TRAINING) {
-      assertLaserON(type);
-    } else if (((type == laserDuring4thOdor_D && stim > 4)  || (type == laserDuring3rdOdor_D  && stim < 5)) && taskType == DRT_DPA_TRAINING) {
       assertLaserON(type);
     } else if  (type == laserDuringResp_S || type == laserDuring2ndOdor_S) {
       assertLaserON(type);
@@ -370,21 +366,21 @@ void stim(int place, int stim, int type) {
   Valve_OFF(stim + 10);
   delay(100);
   Valve_OFF(stim);
-  if ((type == laserDuring1stOdor_S && place == 1) && ((type == laserDuring2ndOdor_S || type == laserDuringTwoOdors_S) && place == 2)) {
-    assertLaserOFF(type, false);
-  }
+//  if ((type == laserDuring1stOdor_S && place == 1) && ((type == laserDuring2ndOdor_S || type == laserDuringTwoOdors_S) && place == 2)) {
+//    assertLaserOFF(type, false);
+//  }
   if (place == 1) {
-    if (((type == laserDuring1stOdor_D && stim < 3)  || (type == laserDuring2ndOdor_D  && stim > 4)) && taskType == DPA_DRT_TRAINING) {
+    if (type == laserDuring1stOdor_S ) {
       assertLaserOFF(type, false);
-    } else if (((type == laserDuring1stOdor_D && stim > 4)  || (type == laserDuring2ndOdor_D  && stim < 3)) && taskType == DRT_DPA_TRAINING) {
+    } else if (((type == laserDuring1stOdor_D && stim < 3)  || (type == laserDuring2ndOdor_D  && stim > 4)) && taskType == DPA_DRT_TRAINING) {      
       assertLaserOFF(type, false);
-    }
+    } 
   } else if (place == 2 ) {
-    if (((type == laserDuring4thOdor_D && stim < 5)  || (type == laserDuring3rdOdor_D  && stim > 4)) && taskType == DPA_DRT_TRAINING) {
+    if (type == laserDuring2ndOdor_S || type == laserDuringTwoOdors_S) {
       assertLaserOFF(type, false);
-    } else if (((type == laserDuring4thOdor_D && stim > 4)  || (type == laserDuring3rdOdor_D  && stim < 5)) && taskType == DRT_DPA_TRAINING) {
+    } else if (((type == laserDuring4thOdor_D && stim < 5)  || (type == laserDuring3rdOdor_D  && stim > 4)) && taskType == DPA_DRT_TRAINING) {
       assertLaserOFF(type, false);
-    }
+    } 
   }
   serialSend(stimSend, 0);
   waitTaskTimer(1000u);
